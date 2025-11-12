@@ -85,8 +85,9 @@ def create_predictions_plot(predictions, labels, wandb_prefix):
         fig, 111, nrows_ncols=(predictions.shape[1] + labels.shape[1], 4), axes_pad=0.1
     )
 
-    vmax, vmin = max(predictions.max(), labels.max()), min(
-        predictions.min(), labels.min()
+    vmax, vmin = (
+        max(predictions.max(), labels.max()),
+        min(predictions.min(), labels.min()),
     )
 
     for _i, ax in enumerate(grid):
@@ -195,32 +196,17 @@ if __name__ == "__main__":
     params = read_cli(parser).parse_args()
     run, config, ckpt_dir, RANK, CPU_CORES = setup(params)
 
-    train_eval_set_kwargs = (
-        {"just_velocities": True}
-        if ("incompressible" in config["dataset"]) and params.just_velocities
-        else {}
-    )
-    if params.move_data is not None:
-        train_eval_set_kwargs["move_to_local_scratch"] = params.move_data
-    if params.max_num_train_time_steps is not None:
-        train_eval_set_kwargs["max_num_time_steps"] = params.max_num_train_time_steps
-    if params.train_time_step_size is not None:
-        train_eval_set_kwargs["time_step_size"] = params.train_time_step_size
-    if params.train_small_time_transition:
-        train_eval_set_kwargs["allowed_time_transitions"] = [1]
     train_dataset = get_dataset(
-        dataset=config["dataset"],
-        which="train",
-        num_trajectories=config["num_trajectories"],
-        data_path=params.data_path,
-        **train_eval_set_kwargs,
+        path=params.data_path,
+        split_name="train",
+        datasets=config["datasets"],
+        num_channels=config["num_channels"],
     )
     eval_dataset = get_dataset(
-        dataset=config["dataset"],
-        which="val",
-        num_trajectories=config["num_trajectories"],
-        data_path=params.data_path,
-        **train_eval_set_kwargs,
+        path=params.data_path,
+        split_name="valid",
+        datasets=config["datasets"],
+        num_channels=config["num_channels"],
     )
 
     config["effective_train_set_size"] = len(train_dataset)
@@ -229,27 +215,12 @@ if __name__ == "__main__":
         and isinstance(train_dataset.datasets[0], BaseTimeDataset)
     )
 
-    if not isinstance(train_dataset, torch.utils.data.ConcatDataset):
-        resolution = train_dataset.resolution
-        input_dim = train_dataset.input_dim
-        output_dim = train_dataset.output_dim
-        channel_slice_list = train_dataset.channel_slice_list
-        printable_channel_description = train_dataset.printable_channel_description
-    else:
-        resolution = train_dataset.datasets[0].resolution
-        input_dim = train_dataset.datasets[0].input_dim
-        output_dim = train_dataset.datasets[0].output_dim
-        channel_slice_list = train_dataset.datasets[0].channel_slice_list
-        printable_channel_description = train_dataset.datasets[
-            0
-        ].printable_channel_description
-
     model_config = (
         ScOTConfig(
-            image_size=resolution,
+            image_size=128,
             patch_size=config["patch_size"],
-            num_channels=input_dim,
-            num_out_channels=output_dim,
+            num_channels=config["num_channels"],
+            num_out_channels=config["num_channels"],
             embed_dim=config["embed_dim"],
             depths=config["depths"],
             num_heads=config["num_heads"],
@@ -265,7 +236,7 @@ if __name__ == "__main__":
             initializer_range=0.02,
             layer_norm_eps=1e-5,
             p=1,
-            channel_slice_list_normalized_loss=channel_slice_list,
+            channel_slice_list_normalized_loss=None,
             residual_model="convnext",
             use_conditioning=time_involved,
             learn_residual=False,
@@ -277,7 +248,7 @@ if __name__ == "__main__":
     train_config = TrainingArguments(
         output_dir=ckpt_dir,
         overwrite_output_dir=True,  #! OVERWRITE THIS DIRECTORY IN CASE, also for resuming training
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
         per_device_train_batch_size=config["batch_size"],
         per_device_eval_batch_size=config["batch_size"],
         eval_accumulation_steps=16,
@@ -408,7 +379,7 @@ if __name__ == "__main__":
 
     trainer.train(resume_from_checkpoint=params.resume_training)
     trainer.save_model(train_config.output_dir)
-    
+
     if (RANK == 0 or RANK == -1) and params.push_to_hf_hub is not None:
         model.push_to_hub(params.push_to_hf_hub)
 

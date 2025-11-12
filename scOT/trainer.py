@@ -1,9 +1,9 @@
 """
 Our version of the Huggingface Trainer class.
-It adds learning_rate_time_embedding, learning_rate_embedding_recovery as 
+It adds learning_rate_time_embedding, learning_rate_embedding_recovery as
 additional learning rates and groups parameters for the optimizer.
-It also allows for autoregressive rollouts by using 
-trainer.set_ar_steps(AR_STEPS) where AR_STEPS is either a an integer for a 
+It also allows for autoregressive rollouts by using
+trainer.set_ar_steps(AR_STEPS) where AR_STEPS is either a an integer for a
 homogeneous rollout of AR_STEPS steps or a list of integers for a heterogeneous
 rollout where each element is the timestep.
 If, additionally, output_all_steps is also set, the predict function will
@@ -430,14 +430,12 @@ class Trainer(Trainer_):
                                 p.data_ptr(): p.numel() for p in module.parameters()
                             }.values()
                         )
-                        print(f"skipped {module}: {skipped/2**20}M params")
+                        print(f"skipped {module}: {skipped / 2**20}M params")
                         manager.register_module_override(
                             module, "weight", {"optim_bits": 32}
                         )
-                        logger.debug(
-                            f"bitsandbytes: will optimize {module} in fp32"
-                        )
-                print(f"skipped: {skipped/2**20}M params")
+                        logger.debug(f"bitsandbytes: will optimize {module} in fp32")
+                print(f"skipped: {skipped / 2**20}M params")
 
         if is_sagemaker_mp_enabled():
             self.optimizer = smp.DistributedOptimizer(self.optimizer)
@@ -602,7 +600,7 @@ class Trainer(Trainer_):
 
         return outputs
 
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
         if self.label_smoother is not None and "labels" in inputs:
             labels = inputs.pop("labels")
         else:

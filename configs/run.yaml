@@ -1,9 +1,27 @@
-dataset:
-  value: "wave.Layer"
-num_trajectories:
-  value: 128
+datasets:
+  value:
+    - turbulent_radiative_layer_2D
+    # - cylinder_sym_flow_water
+    # - cylinder_pipe_flow_water
+    # - object_periodic_flow_water
+    # - object_sym_flow_water
+    # - object_sym_flow_air
+
+    # - heated_object_pipe_flow_air
+    # - cooled_object_pipe_flow_air
+    # - rayleigh_benard_obstacle
+
+    # - twophase_flow
+
+    # - rayleigh_benard
+    # - shear_flow
+    # - euler_multi_quadrants_periodicBC
+    # - acoustic_scattering_inclusions
+num_channels:
+  value: 4
+
 model_name:
-  value: "B"
+  value: "T"
 lr:
   value: 0.00005
 lr_embedding_recovery:
@@ -11,7 +29,7 @@ lr_embedding_recovery:
 lr_time_embedding:
   value: 0.0005
 weight_decay:
-  value: 0.000001
+  value: 0.000000
 lr_scheduler:
   value: "cosine"
 warmup_ratio:
@@ -21,6 +39,6 @@ early_stopping_patience:
 num_epochs:
   value: 200
 batch_size:
-  value: 40
+  value: 4
 max_grad_norm:
   value: 5.0
