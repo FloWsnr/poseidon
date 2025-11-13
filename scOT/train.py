@@ -248,12 +248,14 @@ if __name__ == "__main__":
     train_config = TrainingArguments(
         output_dir=ckpt_dir,
         overwrite_output_dir=True,  #! OVERWRITE THIS DIRECTORY IN CASE, also for resuming training
-        eval_strategy="epoch",
+        eval_strategy="steps",
+        eval_steps=config["eval_steps"],
         per_device_train_batch_size=config["batch_size"],
         per_device_eval_batch_size=config["batch_size"],
         eval_accumulation_steps=16,
         max_grad_norm=config["max_grad_norm"],
-        num_train_epochs=config["num_epochs"],
+        # num_train_epochs=config["num_epochs"],
+        max_steps=config["max_steps"],
         optim="adamw_torch",
         learning_rate=config["lr"],
         learning_rate_embedding_recovery=(
@@ -276,7 +278,8 @@ if __name__ == "__main__":
         logging_strategy="steps",
         logging_steps=5,
         logging_nan_inf_filter=False,
-        save_strategy="epoch",
+        save_strategy="steps",
+        save_steps=config["eval_steps"],
         save_total_limit=1,
         seed=SEED,
         fp16=False,
@@ -313,7 +316,7 @@ if __name__ == "__main__":
         print(f"Model size without embeddings: {num_params_no_embed}")
 
     def compute_metrics(eval_preds):
-        channel_list = channel_slice_list
+        channel_list = range(0, config["num_channels"] + 1)
 
         def get_statistics(errors):
             median_error = np.median(errors, axis=0)
@@ -341,7 +344,7 @@ if __name__ == "__main__":
             for i in range(len(channel_list) - 1)
         ]
 
-        if output_dim == 1:
+        if config["num_channels"] == 1:
             error_statistics = error_statistics[0]
             return error_statistics
         else:
@@ -361,11 +364,9 @@ if __name__ == "__main__":
                 "mean_relative_l1_error": mean_over_means,
                 "mean_over_median_relative_l1_error": mean_over_medians,
             }
-            for i, stats in enumerate(error_statistics):
-                for key, value in stats.items():
-                    error_statistics_[printable_channel_description[i] + "/" + key] = (
-                        value
-                    )
+            # for i, stats in enumerate(error_statistics):
+            #     for key, value in stats.items():
+            #         error_statistics_[channel_list[i] + "/" + key] = value
             return error_statistics_
 
     trainer = Trainer(
@@ -383,14 +384,15 @@ if __name__ == "__main__":
     if (RANK == 0 or RANK == -1) and params.push_to_hf_hub is not None:
         model.push_to_hub(params.push_to_hf_hub)
 
-    do_test = (
-        True
-        if params.max_num_train_time_steps is None
-        and params.train_time_step_size is None
-        and not params.train_small_time_transition
-        and not ".time" in config["dataset"]
-        else False
-    )
+    # do_test = (
+    #     True
+    #     if params.max_num_train_time_steps is None
+    #     and params.train_time_step_size is None
+    #     and not params.train_small_time_transition
+    #     and ".time" not in config["dataset"]
+    #     else False
+    # )
+    do_test = False
     if do_test:
         print("Testing...")
         test_set_kwargs = (

@@ -47,11 +47,19 @@ sim_name="poseidon_test00"
 # Set up paths
 base_dir="/home/flwi01/coding/poseidon"
 python_exec="${base_dir}/scOT/train.py"
-checkpoint_path="${base_dir}/results/${sim_name}"
+checkpoint_path="${base_dir}/results"
 data_dir="/home/flwi01/coding/well_datasets"
 config_file="${base_dir}/configs/run.yaml"
 
 export OMP_NUM_THREADS=1 # (num cpu - num_workers) / num_gpus
+
+# finetune:
+# path="/home/flwi01/coding/poseidon/results/poseidon_test00/Large-Physics-Foundation-Model/poseidon_test00/checkpoint-200"
+
+
+accelerate_args="
+--config_file ./configs/accel_config.yaml \
+--num_cpu_threads_per_process 8"
 
 
 #####################################################################################
@@ -64,5 +72,9 @@ exec_args="--config $config_file \
     --checkpoint_path  $checkpoint_path \
     --data_path  $data_dir"
 
+if [ -n "$path" ]; then
+    exec_args="$exec_args --finetune_from $path"
+fi
+
 # Capture Python output and errors in a variable and run the script
-accelerate launch $python_exec $exec_args
+accelerate launch $accelerate_args $python_exec $exec_args
