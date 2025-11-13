@@ -1,22 +1,18 @@
 datasets:
   value:
-    - turbulent_radiative_layer_2D
-    # - cylinder_sym_flow_water
-    # - cylinder_pipe_flow_water
-    # - object_periodic_flow_water
-    # - object_sym_flow_water
-    # - object_sym_flow_air
+      - [turbulent_radiative_layer_2D, 101]
+      # - [cylinder_flow_water, 481]
+      # - [cylinder_pipe_flow_water, 481]
+      # - [object_periodic_flow_water, 481]
+      # - [object_sym_flow_water, 481]
+      # - [heated_object_pipe_flow_air, 481]
+      # - [cooled_object_pipe_flow_air, 481]
+      # - [rayleigh_benard_obstacle, 1001]
+      # - [twophase_flow, 401]
+      # - [rayleigh_benard, 200]
+      # - [shear_flow, 200]
+      # - [euler_multi_quadrants_periodicBC, 100]
 
-    # - heated_object_pipe_flow_air
-    # - cooled_object_pipe_flow_air
-    # - rayleigh_benard_obstacle
-
-    # - twophase_flow
-
-    # - rayleigh_benard
-    # - shear_flow
-    # - euler_multi_quadrants_periodicBC
-    # - acoustic_scattering_inclusions
 num_channels:
   value: 4
 
