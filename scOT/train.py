@@ -290,6 +290,7 @@ if __name__ == "__main__":
         greater_is_better=False,
         dataloader_pin_memory=True,
         gradient_checkpointing=False,
+        ddp_find_unused_parameters=False,
         auto_find_batch_size=False,
         full_determinism=False,
         torch_compile=False,

@@ -19,7 +19,7 @@
 #SBATCH --mail-user=florian.wiesner@avt.rwth-aachen.de
 
 ### Maximum runtime per task
-#SBATCH --time=01:00:00
+#SBATCH --time=24:00:00
 
 ### set number of GPUs per task
 #SBATCH --gres=gpu:2
@@ -42,7 +42,7 @@ conda activate gphyt
 ######################################################################################
 # debug mode
 # debug=true
-sim_name="poseidon_test01"
+sim_name="poseidon_01"
 # Set up paths
 base_dir="/hpcwork/rwth1802/coding/poseidon"
 python_exec="${base_dir}/scOT/train.py"

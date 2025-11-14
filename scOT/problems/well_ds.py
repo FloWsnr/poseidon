@@ -1215,27 +1215,42 @@ def get_all_dt_datasets(
     use_normalization: bool = True,
     full_trajectory_mode: bool = False,
     nan_to_zero: bool = True,
+    split_in_dt: bool = False,
 ) -> SuperDataset:
     """ """
 
     all_ds = {}
     for ds_name, traj_length in datasets:
         ds_path = Path(path) / f"{ds_name}/data/{split_name}"
-        if max_stride == -1:
-            max_stride = traj_length - 2  # leave at least 1 step for input and output
         if ds_path.exists():
-            strides = range(min_stride, max_stride + 1)
-            for stride in strides:
+            if max_stride == -1:
+                max_stride = (
+                    traj_length - 2
+                )  # leave at least 1 step for input and output
+
+            if split_in_dt:
+                strides = range(min_stride, max_stride + 1)
+                for stride in strides:
+                    dataset = PhysicsDataset(
+                        data_dir=Path(path) / f"{ds_name}/data/{split_name}",
+                        use_normalization=use_normalization,
+                        dt_stride=stride,
+                        full_trajectory_mode=full_trajectory_mode,
+                        nan_to_zero=nan_to_zero,
+                        num_channels=num_channels,
+                    )
+                    ds_key = f"{ds_name}_dt{stride}"
+                    all_ds[ds_key] = dataset
+            else:
                 dataset = PhysicsDataset(
                     data_dir=Path(path) / f"{ds_name}/data/{split_name}",
                     use_normalization=use_normalization,
-                    dt_stride=stride,
+                    dt_stride=[min_stride, max_stride],
                     full_trajectory_mode=full_trajectory_mode,
                     nan_to_zero=nan_to_zero,
                     num_channels=num_channels,
                 )
-                ds_key = f"{ds_name}_dt{stride}"
-                all_ds[ds_key] = dataset
+                all_ds[ds_name] = dataset
 
         else:
             print(f"Dataset path {ds_path} does not exist. Skipping.")
