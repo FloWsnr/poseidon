@@ -22,7 +22,7 @@ from scOT.trainer import TrainingArguments, Trainer
 from transformers import EarlyStoppingCallback
 from scOT.model import ScOT, ScOTConfig
 from mpl_toolkits.axes_grid1 import ImageGrid
-from scOT.problems.base import get_dataset, BaseTimeDataset
+from scOT.problems.well_ds import get_all_dt_datasets
 from scOT.utils import get_num_parameters, read_cli, get_num_parameters_no_embed
 from scOT.metrics import relative_lp_error
 
@@ -196,28 +196,29 @@ if __name__ == "__main__":
     params = read_cli(parser).parse_args()
     run, config, ckpt_dir, RANK, CPU_CORES = setup(params)
 
-    train_dataset = get_dataset(
+    train_dataset = get_all_dt_datasets(
         path=params.data_path,
         split_name="train",
         datasets=config["datasets"],
         num_channels=config["num_channels"],
+        min_stride=config["min_stride"],
+        max_stride=config["max_stride"],
     )
-    eval_dataset = get_dataset(
+    eval_dataset = get_all_dt_datasets(
         path=params.data_path,
         split_name="valid",
         datasets=config["datasets"],
         num_channels=config["num_channels"],
+        min_stride=config["min_stride"],
+        max_stride=config["max_stride"],
     )
 
     config["effective_train_set_size"] = len(train_dataset)
-    time_involved = isinstance(train_dataset, BaseTimeDataset) or (
-        isinstance(train_dataset, torch.utils.data.ConcatDataset)
-        and isinstance(train_dataset.datasets[0], BaseTimeDataset)
-    )
+    time_involved = True
 
     model_config = (
         ScOTConfig(
-            image_size=128,
+            image_size=config["img_size"],
             patch_size=config["patch_size"],
             num_channels=config["num_channels"],
             num_out_channels=config["num_channels"],

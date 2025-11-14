@@ -873,68 +873,6 @@ class WellDataset(Dataset):
         return f"<{self.__class__.__name__}: {self.data_path}>"
 
 
-class DeltaWellDataset(WellDataset):
-    """Dataset for delta target type, modifying the field reconstruction to compute deltas."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def _compute_deltas(self, field_data: torch.Tensor) -> torch.Tensor:
-        """Compute deltas for time-varying fields while ensuring continuity."""
-        x = field_data[: self.n_steps_input]
-        y = field_data[self.n_steps_input :]
-        y = torch.cat([x[-1:, ...], y], dim=0)  # Ensure continuity
-        return torch.cat([x, y[1:, ...] - y[:-1, ...]], dim=0)
-
-    def _process_field_data(
-        self, field_data: torch.Tensor, field_name: str, time_varying: bool
-    ) -> torch.Tensor:
-        """Process field data by computing deltas if time-varying and applying normalization."""
-        if time_varying:
-            field_data = self._compute_deltas(field_data)
-            if self.use_normalization and self.norm:
-                field_data[: self.n_steps_input] = self.norm.normalize(
-                    field_data[: self.n_steps_input], field_name
-                )
-                field_data[self.n_steps_input :] = self.norm.delta_normalize(
-                    field_data[self.n_steps_input :], field_name
-                )
-        elif self.use_normalization and self.norm:
-            field_data = self.norm.normalize(field_data, field_name)
-        return field_data
-
-    def _reconstruct_fields(self, file, cache, sample_idx, time_idx, n_steps, dt):
-        """Reconstruct space fields with delta transformation for output steps."""
-
-        # Store the original normalization state
-        original_use_normalization = self.use_normalization
-
-        # Temporarily disable normalization
-        self.use_normalization = False
-
-        # Call the parent method without normalization
-        variable_fields, constant_fields = super()._reconstruct_fields(
-            file, cache, sample_idx, time_idx, n_steps, dt
-        )
-
-        # Restore the original normalization state
-        self.use_normalization = original_use_normalization
-
-        for i in variable_fields:
-            for field_name, field_data in variable_fields[i].items():
-                variable_fields[i][field_name] = self._process_field_data(
-                    field_data, field_name, time_varying=True
-                )
-
-        for i in constant_fields:
-            for field_name, field_data in constant_fields[i].items():
-                constant_fields[i][field_name] = self._process_field_data(
-                    field_data, field_name, time_varying=False
-                )
-
-        return variable_fields, constant_fields
-
-
 class PhysicsDataset(WellDataset):
     """Wrapper around the WellDataset.
 
@@ -1016,7 +954,7 @@ class PhysicsDataset(WellDataset):
         x = rearrange(x, "1 h w c -> 1 c h w")
         y = rearrange(y, "1 h w c -> 1 c h w")
 
-        # interpolate to 128x128
+        # # interpolate to 128x128
         x = F.interpolate(x, size=(128, 128), mode="bilinear", align_corners=False)
         y = F.interpolate(y, size=(128, 128), mode="bilinear", align_corners=False)
 
@@ -1033,3 +971,143 @@ class PhysicsDataset(WellDataset):
             / self.max_time,  # difference between input and label
             "pixel_mask": self.pixel_mask,
         }
+
+
+class SuperDataset:
+    """Wrapper around a list of datasets.
+
+    Allows to concatenate multiple datasets and randomly sample from them.
+
+    Parameters
+    ----------
+    datasets : dict[str, PhysicsDataset]
+        Dictionary of datasets to concatenate
+    out_shape : tuple[int, int]
+        Output shape (h, w) of the concatenated dataset.
+        This is needed to account for the different shapes of the datasets.
+    max_samples_per_ds : Optional[int | list[int]]
+        Maximum number of samples to sample from each dataset.
+        If a list, specifies the number of samples for each dataset individually.
+        If None, uses all samples from each dataset.
+        By default None.
+
+    return_ds_idx : bool
+        Whether to return the dataset index along with the data.
+        This is used for PINN losses to know which dataset the sample comes from.
+        By default False.
+
+    seed : Optional[int]
+        Random seed for reproducibility.
+        By default None.
+    """
+
+    def __init__(
+        self,
+        datasets: dict[str, PhysicsDataset],
+        max_samples_per_ds: Optional[int | list[int]] = None,
+        seed: Optional[int] = None,
+        return_ds_idx: bool = False,
+    ):
+        self.datasets = datasets
+        self.dataset_list = list(datasets.values())
+        self.return_ds_idx = return_ds_idx
+
+        if isinstance(max_samples_per_ds, int):
+            self.max_samples_per_ds = [max_samples_per_ds] * len(datasets)
+        else:
+            self.max_samples_per_ds = max_samples_per_ds
+
+        self.seed = seed
+
+        # Initialize random number generator
+        self.rng = torch.Generator()
+        if seed is not None:
+            self.rng.manual_seed(seed)
+
+        # Generate initial random indices
+        self.reshuffle()
+
+    def reshuffle(self):
+        """Reshuffle the indices for each dataset.
+
+        This should be called at the start of each epoch to ensure
+        a new random subset of samples is used.
+
+        """
+        self.dataset_indices = []
+        for i, dataset in enumerate(self.dataset_list):
+            if (
+                self.max_samples_per_ds is not None
+                and len(dataset) > self.max_samples_per_ds[i]
+            ):
+                indices = torch.randperm(len(dataset), generator=self.rng)[
+                    : self.max_samples_per_ds[i]
+                ]
+                self.dataset_indices.append(indices)
+            else:
+                self.dataset_indices.append(None)
+
+        # Calculate lengths based on either max_samples_per_ds or full dataset length
+        self.lengths = [
+            min(self.max_samples_per_ds[i], len(dataset))
+            if self.max_samples_per_ds is not None
+            else len(dataset)
+            for i, dataset in enumerate(self.dataset_list)
+        ]
+
+    def __len__(self):
+        return sum(self.lengths)
+
+    def __getitem__(self, index) -> tuple[dict, Optional[int]]:
+        for i, length in enumerate(self.lengths):
+            if index < length:
+                if self.dataset_indices[i] is not None:
+                    # Use random index if available
+                    actual_index = self.dataset_indices[i][index]
+                else:
+                    actual_index = index
+                data = self.dataset_list[i][actual_index]  # (time, h, w, n_channels)
+                break
+            index -= length
+        if self.return_ds_idx:
+            return data, i
+        else:
+            return data
+
+
+def get_all_dt_datasets(
+    path: str,
+    split_name: str,
+    datasets: list,
+    num_channels: int,
+    min_stride: int = 1,
+    max_stride: int = 8,
+    use_normalization: bool = True,
+    full_trajectory_mode: bool = False,
+    nan_to_zero: bool = True,
+) -> SuperDataset:
+    """ """
+
+    all_ds = {}
+    for ds_name, traj_length in datasets:
+        ds_path = Path(path) / f"{ds_name}/data/{split_name}"
+        if max_stride == -1:
+            max_stride = traj_length - 2  # leave at least 1 step for input and output
+        if ds_path.exists():
+            strides = range(min_stride, max_stride + 1)
+            for stride in strides:
+                dataset = PhysicsDataset(
+                    data_dir=Path(path) / f"{ds_name}/data/{split_name}",
+                    use_normalization=use_normalization,
+                    dt_stride=stride,
+                    full_trajectory_mode=full_trajectory_mode,
+                    nan_to_zero=nan_to_zero,
+                    num_channels=num_channels,
+                )
+                ds_key = f"{ds_name}_dt{stride}"
+                all_ds[ds_key] = dataset
+
+        else:
+            print(f"Dataset path {ds_path} does not exist. Skipping.")
+
+    return SuperDataset(all_ds, seed=42)

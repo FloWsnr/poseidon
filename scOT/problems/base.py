@@ -3,48 +3,14 @@ This file contains the dataset selector get_dataset, as well as the base
 classes for all datasets.
 """
 
-from torch.utils.data import Dataset, ConcatDataset
+from torch.utils.data import Dataset
 from typing import Optional, List, Dict
 from abc import ABC
-from pathlib import Path
 
 import re
 import os
 import shutil
 from accelerate.utils import broadcast_object_list
-
-from .well_ds import PhysicsDataset
-
-
-def get_dataset(
-    path: str,
-    split_name: str,
-    datasets: list,
-    num_channels: int,
-    use_normalization: bool = True,
-    full_trajectory_mode: bool = False,
-    nan_to_zero: bool = True,
-) -> Dataset:
-    """ """
-
-    all_ds = []
-    for ds_name, max_stride in datasets:
-        ds_path = Path(path) / f"{ds_name}/data/{split_name}"
-        if ds_path.exists():
-            dataset = PhysicsDataset(
-                data_dir=Path(path) / f"{ds_name}/data/{split_name}",
-                use_normalization=use_normalization,
-                dt_stride=[1, max_stride],
-                full_trajectory_mode=full_trajectory_mode,
-                nan_to_zero=nan_to_zero,
-                num_channels=num_channels,
-            )
-            all_ds.append(dataset)
-
-        else:
-            print(f"Dataset path {ds_path} does not exist. Skipping.")
-
-    return ConcatDataset(all_ds)
 
 
 class BaseDataset(Dataset, ABC):

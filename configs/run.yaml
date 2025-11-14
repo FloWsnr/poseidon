@@ -1,6 +1,6 @@
 datasets:
   value:
-      - [turbulent_radiative_layer_2D, 101]
+      - [turbulent_radiative_layer_2D, 8]
       # - [cylinder_flow_water, 481]
       # - [cylinder_pipe_flow_water, 481]
       # - [object_periodic_flow_water, 481]
@@ -36,6 +36,14 @@ early_stopping_patience:
 #   value: 1
 max_steps:
   value: 200
+
+img_size:
+  value: 128
+
+min_stride:
+  value: 1
+max_stride:
+  value: 8
 
 batch_size:
   value: 32
