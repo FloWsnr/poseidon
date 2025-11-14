@@ -52,6 +52,7 @@ class BoundaryCondition(Enum):
     WALL = 0
     OPEN = 1
     PERIODIC = 2
+    SYMMETRIC = 3
 
 
 @dataclass
@@ -922,7 +923,7 @@ class PhysicsDataset(WellDataset):
 
         super().__init__(
             path=str(data_dir),
-            normalization_path=str(data_dir.parents[1] / "stats.yaml"),
+            normalization_path=str(data_dir.parents[0] / "stats.yaml"),
             n_steps_input=1,
             n_steps_output=1,
             use_normalization=use_normalization,

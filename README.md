@@ -13,6 +13,7 @@ Find pretrained models and pretraining dataset in our collection on the [🤗 Hu
 To get all requirements and install the package, run (inside this folder), after getting this repository:
 
 ```bash
+pip install transformers accelerate pandas pyyaml
 pip install -e .
 ```
 
@@ -58,7 +59,7 @@ accelerate launch scOT/train.py \
 ```
 
 For more arguments and options, see the help message of the script:
-    
+
 ```bash
 accelerate launch scOT/train.py --help
 ```
@@ -81,7 +82,7 @@ python -m scOT.inference --help
 
 ## Datasets
 
-We provide all datasets used in the paper on the 🤗 Hub. You can download them from the respective collections: 
+We provide all datasets used in the paper on the 🤗 Hub. You can download them from the respective collections:
 - [🤗 Hub – Pretraining Datasets](https://huggingface.co/collections/camlab-ethz/poseidon-664fa125729c53d8607e209a)
 - [🤗 Hub – Downstream Tasks](https://huggingface.co/collections/camlab-ethz/poseidon-downstream-tasks-664fa237cd6b0c097971ef14)
 
@@ -118,8 +119,8 @@ Adding the suffix `.time` to the dataset identifier will load the dataset as tim
 ### Download & Assembly
 
 Download all the datasets used in our paper from the 🤗 Hub. You may want to use the CLI provided by the [Hub Python Library](https://huggingface.co/docs/huggingface_hub/en/guides/cli#huggingface-cli-download):
-    
-```bash 
+
+```bash
 huggingface-cli download camlab-ethz/<DATASET IDENTIFIER FROM PAPER> --repo-type dataset --local-dir <LOCAL DIRECTORY>
 ```
 
@@ -141,7 +142,7 @@ If you use our models, code, or datasets, please consider citing our paper:
 
 ```bibtex
 @misc{herde2024poseidon,
-      title={Poseidon: Efficient Foundation Models for PDEs}, 
+      title={Poseidon: Efficient Foundation Models for PDEs},
       author={Maximilian Herde and Bogdan Raonić and Tobias Rohner and Roger Käppeli and Roberto Molinaro and Emmanuel de Bézenac and Siddhartha Mishra},
       year={2024},
       eprint={2405.19101},
