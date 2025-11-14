@@ -42,7 +42,7 @@ conda activate gphyt
 ######################################################################################
 # debug mode
 # debug=true
-sim_name="poseidon_test00"
+sim_name="poseidon_test01"
 # Set up paths
 base_dir="/hpcwork/rwth1802/coding/poseidon"
 python_exec="${base_dir}/scOT/train.py"

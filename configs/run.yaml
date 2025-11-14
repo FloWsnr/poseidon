@@ -34,22 +34,24 @@ warmup_ratio:
   value: 0.0
 early_stopping_patience:
   value: 200
+
+
+###########################
 # num_epochs:
 #   value: 1
 max_steps:
-  value: 200
+  value: 1000000
+eval_steps:
+  value: 20000
 
 img_size:
   value: 128
-
 min_stride:
   value: 1
 max_stride:
   value: 8
 
 batch_size:
-  value: 64 #4=6gb
+  value: 128 #4=6gb
 max_grad_norm:
   value: 5.0
-eval_steps:
-  value: 100
