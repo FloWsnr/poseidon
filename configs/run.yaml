@@ -42,7 +42,7 @@ early_stopping_patience:
 max_steps:
   value: 1000000
 eval_steps:
-  value: 20000
+  value: 200
 
 img_size:
   value: 128

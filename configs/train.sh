@@ -12,10 +12,10 @@
 #SBATCH --nodes=1
 
 ### How many CPU cores to use
-#SBATCH --ntasks-per-node=34
+#SBATCH --ntasks-per-node=36
 
 ### How much memory in total (MB)
-#SBATCH --mem=150G
+#SBATCH --mem=100G
 
 
 ### Mail notification configuration
@@ -23,14 +23,14 @@
 #SBATCH --mail-user=florian.wiesner@avt.rwth-aachen.de
 
 ### Maximum runtime per task
-#SBATCH --time=72:00:00
+#SBATCH --time=02:00:00
 
 ### set number of GPUs per task (v100, a100, h200)
-#SBATCH --gres=gpu:a100:2
-#SBATCH --constraint=a100_80gb
+#SBATCH --gres=gpu:a6000:4
+##SBATCH --constraint=a100_80gb
 
-### create time series, i.e. 100 jobs one after another. Each runs for 24 hours
-##SBATCH --array=1-10%1
+### Partition
+#SBATCH --partition=gpu
 
 #####################################################################################
 ############################# Setup #################################################
@@ -47,7 +47,7 @@ conda activate gphyt
 ######################################################################################
 # debug mode
 # debug=true
-sim_name="poseidon_02"
+sim_name="poseidon_02_test"
 # Set up paths
 base_dir="/scratch/zsa8rk/poseidon"
 python_exec="${base_dir}/scOT/train.py"
@@ -63,7 +63,7 @@ export OMP_NUM_THREADS=1 # (num cpu - num_workers) / num_gpus
 
 accelerate_args="
 --config_file ./configs/accel_config.yaml \
---num_cpu_threads_per_process 16"
+--num_cpu_threads_per_process 8"
 
 
 #####################################################################################
