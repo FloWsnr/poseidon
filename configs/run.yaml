@@ -42,7 +42,7 @@ early_stopping_patience:
 max_steps:
   value: 1000000
 eval_steps:
-  value: 50
+  value: 20000
 
 img_size:
   value: 128
@@ -52,6 +52,6 @@ max_stride:
   value: 8
 
 batch_size:
-  value: 128 #4=6gb
+  value: 32 #4=6gb
 max_grad_norm:
   value: 5.0

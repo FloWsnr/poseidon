@@ -12,10 +12,10 @@
 #SBATCH --nodes=1
 
 ### How many CPU cores to use
-#SBATCH --ntasks-per-node=36
+#SBATCH --ntasks-per-node=20
 
 ### How much memory in total (MB)
-#SBATCH --mem=100G
+#SBATCH --mem=20G
 
 
 ### Mail notification configuration
@@ -27,6 +27,7 @@
 
 ### set number of GPUs per task (v100, a100, h200)
 #SBATCH --gres=gpu:a6000:4
+##SBATCH --gres=gpu:a100:2
 ##SBATCH --constraint=a100_80gb
 
 ### Partition
@@ -47,7 +48,7 @@ conda activate gphyt
 ######################################################################################
 # debug mode
 # debug=true
-sim_name="poseidon_02_test"
+sim_name="poseidon_02_test1"
 # Set up paths
 base_dir="/scratch/zsa8rk/poseidon"
 python_exec="${base_dir}/scOT/train.py"
@@ -62,8 +63,7 @@ export OMP_NUM_THREADS=1 # (num cpu - num_workers) / num_gpus
 
 
 accelerate_args="
---config_file ./configs/accel_config.yaml \
---num_cpu_threads_per_process 8"
+--config_file ./configs/accel_config.yaml"
 
 
 #####################################################################################
