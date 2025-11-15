@@ -25,6 +25,7 @@ from mpl_toolkits.axes_grid1 import ImageGrid
 from scOT.problems.well_ds import get_all_dt_datasets
 from scOT.utils import get_num_parameters, read_cli, get_num_parameters_no_embed
 from scOT.metrics import relative_lp_error
+from scOT.loss_fns import RVMSELoss
 
 SEED = 0
 torch.manual_seed(SEED)
@@ -366,6 +367,14 @@ if __name__ == "__main__":
                 "mean_relative_l1_error": mean_over_means,
                 "mean_over_median_relative_l1_error": mean_over_medians,
             }
+
+            # compute total RVMSE
+            vrmse = RVMSELoss(return_scalar=True)
+            preds_tensor = torch.tensor(eval_preds.predictions)
+            labels_tensor = torch.tensor(eval_preds.label_ids)
+            vrmse_value = vrmse(preds_tensor, labels_tensor).item()
+            error_statistics_["total_rvmse"] = vrmse_value
+
             # for i, stats in enumerate(error_statistics):
             #     for key, value in stats.items():
             #         error_statistics_[channel_list[i] + "/" + key] = value
