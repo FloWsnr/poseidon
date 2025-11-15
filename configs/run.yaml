@@ -49,7 +49,7 @@ img_size:
 min_stride:
   value: 1
 max_stride:
-  value: -1
+  value: 8
 
 batch_size:
   value: 128 #4=6gb

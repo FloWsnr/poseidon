@@ -1,29 +1,33 @@
 #!/usr/bin/bash
 
 ### Task name
-#SBATCH --account=xxxxxxx
-#SBATCH --job-name=train_gphyt
+#SBATCH --account=sds_baek_energetic
+#SBATCH --job-name=train_poseidon
 
 ### Output file
-#SBATCH --output=results/slrm_logs/train_gphyt_%j.out
+#SBATCH --output=results/slrm_logs/train_poseidon_%j.out
 
 
 ### Start a parallel job for a distributed-memory system on several nodes
 #SBATCH --nodes=1
 
 ### How many CPU cores to use
-#SBATCH --ntasks-per-node=96
-#SBATCH --exclusive
+#SBATCH --ntasks-per-node=34
+
+### How much memory in total (MB)
+#SBATCH --mem=150G
+
 
 ### Mail notification configuration
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=email@example.com
+#SBATCH --mail-user=florian.wiesner@avt.rwth-aachen.de
 
 ### Maximum runtime per task
 #SBATCH --time=72:00:00
 
-### set number of GPUs per task
-#SBATCH --gres=gpu:4
+### set number of GPUs per task (v100, a100, h200)
+#SBATCH --gres=gpu:a100:2
+#SBATCH --constraint=a100_80gb
 
 ### create time series, i.e. 100 jobs one after another. Each runs for 24 hours
 ##SBATCH --array=1-10%1
@@ -43,12 +47,12 @@ conda activate gphyt
 ######################################################################################
 # debug mode
 # debug=true
-sim_name="poseidon_test00"
+sim_name="poseidon_02"
 # Set up paths
-base_dir="/home/flwi01/coding/poseidon"
+base_dir="/scratch/zsa8rk/poseidon"
 python_exec="${base_dir}/scOT/train.py"
 checkpoint_path="${base_dir}/results"
-data_dir="/home/flwi01/coding/well_datasets"
+data_dir="/scratch/zsa8rk/datasets"
 config_file="${base_dir}/configs/run.yaml"
 
 export OMP_NUM_THREADS=1 # (num cpu - num_workers) / num_gpus
@@ -59,7 +63,7 @@ export OMP_NUM_THREADS=1 # (num cpu - num_workers) / num_gpus
 
 accelerate_args="
 --config_file ./configs/accel_config.yaml \
---num_cpu_threads_per_process 8"
+--num_cpu_threads_per_process 16"
 
 
 #####################################################################################
@@ -77,4 +81,5 @@ if [ -n "$path" ]; then
 fi
 
 # Capture Python output and errors in a variable and run the script
+echo "Starting training"
 accelerate launch $accelerate_args $python_exec $exec_args

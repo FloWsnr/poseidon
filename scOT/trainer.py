@@ -468,12 +468,12 @@ class Trainer(Trainer_):
                     if self.output_all_steps:
                         outputs_.append(outputs.output.detach())
                         if outputs.hidden_states is not None:
-                            hidden_states_.append(outputs.hidden_states)
+                            hidden_states_.append(tuple(h.detach() for h in outputs.hidden_states))
                         if outputs.attentions is not None:
-                            attentions_.append(outputs.attentions)
+                            attentions_.append(tuple(a.detach() for a in outputs.attentions))
                         if outputs.reshaped_hidden_states is not None:
                             reshaped_hidden_states_.append(
-                                outputs.reshaped_hidden_states
+                                tuple(rhs.detach() for rhs in outputs.reshaped_hidden_states)
                             )
                         if outputs.loss is not None:
                             loss_.append(outputs.loss)
@@ -540,12 +540,12 @@ class Trainer(Trainer_):
                     if self.output_all_steps:
                         outputs_.append(outputs.output.detach())
                         if outputs.hidden_states is not None:
-                            hidden_states_.append(outputs.hidden_states)
+                            hidden_states_.append(tuple(h.detach() for h in outputs.hidden_states))
                         if outputs.attentions is not None:
-                            attentions_.append(outputs.attentions)
+                            attentions_.append(tuple(a.detach() for a in outputs.attentions))
                         if outputs.reshaped_hidden_states is not None:
                             reshaped_hidden_states_.append(
-                                outputs.reshaped_hidden_states
+                                tuple(rhs.detach() for rhs in outputs.reshaped_hidden_states)
                             )
                         if outputs.loss is not None:
                             loss_.append(outputs.loss)

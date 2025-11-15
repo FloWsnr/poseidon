@@ -56,7 +56,8 @@ export OMP_NUM_THREADS=1 # (num cpu - num_workers) / num_gpus
 # path="/home/flwi01/coding/poseidon/results/poseidon_test00/Large-Physics-Foundation-Model/poseidon_test00/checkpoint-200"
 
 
-accelerate_args="--config_file ./configs/accel_config.yaml"
+accelerate_args="--config_file ./configs/accel_config.yaml \
+--num_cpu_threads_per_process 23"
 
 
 #####################################################################################
