@@ -197,6 +197,7 @@ if __name__ == "__main__":
     params = read_cli(parser).parse_args()
     run, config, ckpt_dir, RANK, CPU_CORES = setup(params)
 
+    print("Load datasets and loaders")
     train_dataset = get_all_dt_datasets(
         path=params.data_path,
         split_name="train",
@@ -390,6 +391,7 @@ if __name__ == "__main__":
         callbacks=[early_stopping],
     )
 
+    print("Start training")
     trainer.train(resume_from_checkpoint=params.resume_training)
     trainer.save_model(train_config.output_dir)
 

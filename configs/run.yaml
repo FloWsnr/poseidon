@@ -52,6 +52,6 @@ max_stride:
   value: 8
 
 batch_size:
-  value: 32 #4=6gb
+  value: 16 #4=6gb
 max_grad_norm:
   value: 5.0

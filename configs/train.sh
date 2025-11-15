@@ -15,7 +15,7 @@
 #SBATCH --ntasks-per-node=20
 
 ### How much memory in total (MB)
-#SBATCH --mem=20G
+#SBATCH --mem=50G
 
 
 ### Mail notification configuration
@@ -26,7 +26,7 @@
 #SBATCH --time=02:00:00
 
 ### set number of GPUs per task (v100, a100, h200)
-#SBATCH --gres=gpu:a6000:4
+#SBATCH --gres=gpu:a6000:2
 ##SBATCH --gres=gpu:a100:2
 ##SBATCH --constraint=a100_80gb
 
@@ -63,7 +63,7 @@ export OMP_NUM_THREADS=1 # (num cpu - num_workers) / num_gpus
 
 
 accelerate_args="
---config_file ./configs/accel_config.yaml"
+--config_file $base_dir/configs/accel_config.yaml"
 
 
 #####################################################################################
