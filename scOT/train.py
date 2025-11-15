@@ -297,6 +297,7 @@ if __name__ == "__main__":
         torch_compile=False,
         report_to="wandb",
         run_name=params.wandb_run_name,
+        prediction_loss_only=True,
     )
 
     early_stopping = EarlyStoppingCallback(
