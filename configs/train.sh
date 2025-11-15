@@ -12,10 +12,10 @@
 #SBATCH --nodes=1
 
 ### How many CPU cores to use
-#SBATCH --ntasks-per-node=20
+#SBATCH --ntasks-per-node=34
 
 ### How much memory in total (MB)
-#SBATCH --mem=50G
+#SBATCH --mem=150G
 
 
 ### Mail notification configuration
@@ -23,12 +23,12 @@
 #SBATCH --mail-user=florian.wiesner@avt.rwth-aachen.de
 
 ### Maximum runtime per task
-#SBATCH --time=02:00:00
+#SBATCH --time=24:00:00
 
 ### set number of GPUs per task (v100, a100, h200)
-#SBATCH --gres=gpu:a6000:2
-##SBATCH --gres=gpu:a100:2
-##SBATCH --constraint=a100_80gb
+##SBATCH --gres=gpu:a6000:2
+#SBATCH --gres=gpu:a100:2
+#SBATCH --constraint=a100_80gb
 
 ### Partition
 #SBATCH --partition=gpu
@@ -48,7 +48,7 @@ conda activate gphyt
 ######################################################################################
 # debug mode
 # debug=true
-sim_name="poseidon_02_test1"
+sim_name="poseidon_02"
 # Set up paths
 base_dir="/scratch/zsa8rk/poseidon"
 python_exec="${base_dir}/scOT/train.py"

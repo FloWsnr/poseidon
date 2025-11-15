@@ -286,7 +286,7 @@ if __name__ == "__main__":
         save_total_limit=1,
         seed=SEED,
         fp16=False,
-        dataloader_num_workers=CPU_CORES,
+        dataloader_num_workers=config["num_workers"],
         load_best_model_at_end=True,
         metric_for_best_model="loss",
         greater_is_better=False,
