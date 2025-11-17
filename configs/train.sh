@@ -60,6 +60,7 @@ export OMP_NUM_THREADS=1 # (num cpu - num_workers) / num_gpus
 
 # finetune:
 # path="/home/flwi01/coding/poseidon/results/poseidon_test00/Large-Physics-Foundation-Model/poseidon_test00/checkpoint-200"
+resume_training=true
 
 
 accelerate_args="
@@ -78,6 +79,9 @@ exec_args="--config $config_file \
 
 if [ -n "$path" ]; then
     exec_args="$exec_args --finetune_from $path"
+fi
+if [ "$resume_training" = true ]; then
+    exec_args="$exec_args --resume_training"
 fi
 
 # Capture Python output and errors in a variable and run the script

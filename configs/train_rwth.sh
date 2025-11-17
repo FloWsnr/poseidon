@@ -42,7 +42,7 @@ conda activate gphyt
 ######################################################################################
 # debug mode
 # debug=true
-sim_name="poseidon_test_mem2"
+sim_name="poseidon_test_restart02"
 # Set up paths
 base_dir="/hpcwork/rwth1802/coding/poseidon"
 python_exec="${base_dir}/scOT/train.py"
@@ -53,8 +53,9 @@ config_file="${base_dir}/configs/run.yaml"
 export OMP_NUM_THREADS=1 # (num cpu - num_workers) / num_gpus
 
 # finetune:
-# path="/home/flwi01/coding/poseidon/results/poseidon_test00/Large-Physics-Foundation-Model/poseidon_test00/checkpoint-200"
-
+# path="/hpcwork/rwth1802/coding/poseidon/results/Large-Physics-Foundation-Model/poseidon_test_restart01/checkpoint-10"
+# Comment out path when resuming training - checkpoint will be auto-detected
+resume_training=true
 
 accelerate_args="--config_file ./configs/accel_config.yaml \
 --num_cpu_threads_per_process 23"
@@ -73,6 +74,10 @@ exec_args="--config $config_file \
 if [ -n "$path" ]; then
     exec_args="$exec_args --finetune_from $path"
 fi
+if [ "$resume_training" = true ]; then
+    exec_args="$exec_args --resume_training"
+fi
+
 
 # Capture Python output and errors in a variable and run the script
 echo "Starting training"
