@@ -49,11 +49,13 @@ class PhysicsDataset(WellDataset):
     def __init__(
         self,
         data_dir: Path,
+        n_output_steps: int = 1,
         use_normalization: bool = True,
         dt_stride: int | list[int] = 1,
         full_trajectory_mode: bool = False,
         nan_to_zero: bool = True,
         num_channels: int = 5,
+        interp: bool = True,
     ):
         if isinstance(dt_stride, list):
             min_dt_stride = dt_stride[0]
@@ -66,7 +68,7 @@ class PhysicsDataset(WellDataset):
             path=str(data_dir),
             normalization_path=str(data_dir.parents[0] / "stats.yaml"),
             n_steps_input=1,
-            n_steps_output=1,
+            n_steps_output=n_output_steps,
             use_normalization=use_normalization,
             normalization_type=ZScoreNormalization,
             min_dt_stride=min_dt_stride,
@@ -78,6 +80,8 @@ class PhysicsDataset(WellDataset):
         name = data_dir.parents[1].name
         self.dataset_name = name
 
+        self.interp = interp
+        self.output_steps = n_output_steps
         self.pixel_mask = torch.tensor([False] * num_channels)
         self.max_time = self.metadata.n_steps_per_trajectory[0] - 1
 
@@ -94,15 +98,17 @@ class PhysicsDataset(WellDataset):
             y = torch.nan_to_num(y, nan=0.0)
         # reshape to (c, h, w)
         x = rearrange(x, "1 h w c -> 1 c h w")
-        y = rearrange(y, "1 h w c -> 1 c h w")
+        y = rearrange(y, "t h w c -> t c h w")
 
-        # # interpolate to 128x128
-        x = F.interpolate(x, size=(128, 128), mode="bilinear", align_corners=False)
-        y = F.interpolate(y, size=(128, 128), mode="bilinear", align_corners=False)
+        if self.interp:
+            # # interpolate to 128x128
+            x = F.interpolate(x, size=(128, 128), mode="bilinear", align_corners=False)
+            y = F.interpolate(y, size=(128, 128), mode="bilinear", align_corners=False)
 
         # squeeze the batch dimension
         x = x.squeeze(0)
-        y = y.squeeze(0)
+        if self.output_steps == 1:
+            y = y.squeeze(0)
 
         dt = metadata.time_stride
 
@@ -227,7 +233,8 @@ def get_all_dt_datasets(
     full_trajectory_mode: bool = False,
     nan_to_zero: bool = True,
     split_in_dt: bool = False,
-) -> SuperDataset:
+    return_super_dataset: bool = True,
+) -> SuperDataset | dict[str, PhysicsDataset]:
     """ """
 
     all_ds = {}
@@ -266,4 +273,7 @@ def get_all_dt_datasets(
         else:
             print(f"Dataset path {ds_path} does not exist. Skipping.")
 
-    return SuperDataset(all_ds, seed=42)
+    if not return_super_dataset:
+        return all_ds
+    else:
+        return SuperDataset(all_ds, seed=42)

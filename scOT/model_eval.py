@@ -15,6 +15,7 @@ from PIL import Image
 
 import yaml
 
+
 try:
     from yaml import CLoader as Loader
 except ImportError:
@@ -28,10 +29,10 @@ from torch.utils.data import DataLoader, DistributedSampler, SequentialSampler
 import torch.distributed as dist
 
 from safetensors import safe_open
-from scOT.problems.well_ds import PhysicsDataset
+from scOT.problems.well_ds import PhysicsDataset, get_all_dt_datasets
+from scOT.model import ScOT, ScOTConfig
 
 from gphyt.model.transformer.loss_fns import VMSELoss, NMSELoss, MSELoss
-from gphyt.data.dataset_utils import get_dt_datasets
 from gphyt.utils.logger import get_logger
 
 
@@ -57,11 +58,81 @@ DATASET_FIELDS = {
     "euler_multi_quadrants_openbc": (0, 1, 3, 4),
 }
 
+MODEL_MAP = {
+    "T": {
+        "num_heads": [3, 6, 12, 24],
+        "skip_connections": [2, 2, 2, 0],
+        "window_size": 16,
+        "patch_size": 4,
+        "mlp_ratio": 4.0,
+        "depths": [4, 4, 4, 4],
+        "embed_dim": 48,
+    },
+    "S": {
+        "num_heads": [3, 6, 12, 24],
+        "skip_connections": [2, 2, 2, 0],
+        "window_size": 16,
+        "patch_size": 4,
+        "mlp_ratio": 4.0,
+        "depths": [8, 8, 8, 8],
+        "embed_dim": 48,
+    },
+    "B": {
+        "num_heads": [3, 6, 12, 24],
+        "skip_connections": [2, 2, 2, 0],
+        "window_size": 16,
+        "patch_size": 4,
+        "mlp_ratio": 4.0,
+        "depths": [8, 8, 8, 8],
+        "embed_dim": 96,
+    },
+    "L": {
+        "num_heads": [3, 6, 12, 24],
+        "skip_connections": [2, 2, 2, 0],
+        "window_size": 16,
+        "patch_size": 4,
+        "mlp_ratio": 4.0,
+        "depths": [8, 8, 8, 8],
+        "embed_dim": 192,
+    },
+}
+
 
 def load_config(path: Path) -> dict:
     with open(path, "r") as f:
         config = yaml.load(f, Loader=Loader)
     return config
+
+
+def get_model() -> ScOT:
+    m_config = MODEL_MAP["B"]
+    config = ScOTConfig(
+        image_size=128,
+        patch_size=m_config["patch_size"],
+        num_channels=5,
+        num_out_channels=5,
+        embed_dim=m_config["embed_dim"],
+        depths=m_config["depths"],
+        num_heads=m_config["num_heads"],
+        skip_connections=m_config["skip_connections"],
+        window_size=m_config["window_size"],
+        mlp_ratio=m_config["mlp_ratio"],
+        qkv_bias=True,
+        hidden_dropout_prob=0.0,  # default
+        attention_probs_dropout_prob=0.0,  # default
+        drop_path_rate=0.0,
+        hidden_act="gelu",
+        use_absolute_embeddings=False,
+        initializer_range=0.02,
+        layer_norm_eps=1e-5,
+        p=1,
+        channel_slice_list_normalized_loss=None,
+        residual_model="convnext",
+        use_conditioning=True,
+        learn_residual=False,
+    )
+    model = ScOT(config)
+    return model
 
 
 class Evaluator:
@@ -90,13 +161,11 @@ class Evaluator:
         eval_dir: Path,
         batch_size: int = 1,
         num_workers: int = 0,
-        amp: bool = True,
         debug: bool = False,
     ):
         self.device = (
             torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
         )
-        self.ddp_enabled = dist.is_initialized()
 
         log_level = "DEBUG" if debug else "INFO"
         self.debug = debug
@@ -115,12 +184,11 @@ class Evaluator:
         self.eval_dir.mkdir(parents=True, exist_ok=True)
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.amp = amp
 
         self.eval_criteria = {
-            "NMSE": NMSELoss(dims=(1, 2, 3), return_scalar=False),
-            "VMSE": VMSELoss(dims=(1, 2, 3), return_scalar=False),
-            "MSE": MSELoss(dims=(1, 2, 3), return_scalar=False),
+            "NMSE": NMSELoss(dims=(2, 3), return_scalar=False),
+            "VMSE": VMSELoss(dims=(2, 3), return_scalar=False),
+            "MSE": MSELoss(dims=(2, 3), return_scalar=False),
         }
         self.rollout_criteria = {
             "NMSE": NMSELoss(dims=(2, 3), return_scalar=False),
@@ -131,41 +199,17 @@ class Evaluator:
     @classmethod
     def from_checkpoint(
         cls,
-        base_path: Path,
+        cp_path: Path,
+        data_path: Path,
+        config: dict,
         name: str,
-        data_config: dict,
-        model_config: dict,
-        batch_size: int = 64,
-        num_workers: int = 4,
-        amp: bool = True,
-        compile: bool = True,
-        checkpoint_name: str = "best_model",
-        debug: bool = False,
     ) -> "Evaluator":
         """Create an Evaluator instance from a checkpoint.
 
         Parameters
         ----------
-        base_path : Path
-            Path to the base directory of the model
-        name : str
-            Name of the evaluation run
-        data_config : dict
-            Data configuration dictionary
-        model_config : dict
-            Model configuration dictionary
-        batch_size : int, optional
-            Batch size for evaluation, by default 256
-        num_workers : int, optional
-            Number of workers for dataloader, by default 4
-        amp : bool, optional
-            Use automatic mixed precision, by default True
-        compile : bool, optional
-            Whether to compile the model using torch.compile, by default True
-        checkpoint_name : str, optional
-            Name of the checkpoint to load, by default "best_model"
-        debug : bool, optional
-            Enable debug mode, by default False
+        config : dict
+            Configuration dictionary
 
         Returns
         -------
@@ -177,33 +221,32 @@ class Evaluator:
             if torch.cuda.is_available()
             else torch.device("cpu")
         )
-        model = get_model_gphyt(model_config)
-
+        model = get_model()
         model.to(device)
 
-        model, checkpoint_info = cls._load_checkpoint(
-            base_path, device, model, checkpoint_name
-        )
+        model = cls._load_checkpoint(cp_path, device, model)
         torch.set_float32_matmul_precision("high")
-        if not platform.system() == "Windows" and compile:
-            model = torch.compile(model, mode="default")
         model.eval()
-        datasets = get_dt_datasets(data_config, split="test")
+        datasets = get_all_dt_datasets(
+            path=str(data_path),
+            split_name="test",
+            datasets=config["datasets"],
+            num_channels=config["num_channels"],
+            min_stride=config["min_stride"],
+            max_stride=config["max_stride"],
+            return_super_dataset=False,
+            split_in_dt=True,
+        )
 
-        eval_dir = base_path / name
+        eval_dir = cp_path / name
         eval_dir.mkdir(parents=True, exist_ok=True)
-
-        # save the checkpoint info
-        with open(eval_dir / "checkpoint_info.json", "w") as f:
-            json.dump(checkpoint_info, f)
 
         return cls(
             model=model,
             datasets=datasets,
             eval_dir=eval_dir,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            amp=amp,
+            batch_size=config["batch_size"],
+            num_workers=config["num_workers"],
             debug=debug,
         )
 
@@ -212,7 +255,7 @@ class Evaluator:
         path: Path,
         device: torch.device,
         model: torch.nn.Module,
-    ) -> tuple[torch.nn.Module, dict]:
+    ) -> torch.nn.Module:
         """Load a model from a checkpoint.
 
         Parameters
@@ -226,26 +269,19 @@ class Evaluator:
 
         Returns
         -------
-        tuple[torch.nn.Module, dict]
-            Loaded model and checkpoint information
+        torch.nn.Module
+            Loaded model
         """
 
         weights = {}
-        with safe_open("model.safetensors", framework="pt", device=device) as f:
+        with safe_open(path / "model.safetensors", framework="pt", device=device) as f:
             for key in f.keys():
                 weights[key] = f.get_tensor(key)
-        model_dict = data["model_state_dict"]
-        consume_prefix_in_state_dict_if_present(model_dict, "module.")
-        consume_prefix_in_state_dict_if_present(model_dict, "_orig_mod.")
-        model.load_state_dict(model_dict, strict=True)
+        consume_prefix_in_state_dict_if_present(weights, "module.")
+        consume_prefix_in_state_dict_if_present(weights, "_orig_mod.")
+        model.load_state_dict(weights, strict=True)
 
-        checkpoint_info = {
-            "samples_trained": data["samples_trained"],
-            "batches_trained": data["batches_trained"],
-            "cycle_idx": data["cycle_idx"],
-        }
-
-        return model, checkpoint_info
+        return model
 
     def _get_dataloader(self, dataset: PhysicsDataset, is_distributed: bool = False):
         if is_distributed:
@@ -292,19 +328,21 @@ class Evaluator:
 
     @torch.inference_mode()
     def _eval_on_dataset(self, dataset: PhysicsDataset) -> dict[str, torch.Tensor]:
-        loader = self._get_dataloader(dataset, is_distributed=self.ddp_enabled)
+        loader = self._get_dataloader(dataset)
 
         all_losses = {name: [] for name in self.eval_criteria.keys()}
 
-        for i, (xx, target) in enumerate(loader):
+        for i, data in enumerate(loader):
             self.logger.debug(f"  Batch {i}/{len(loader)}")
 
-            xx = xx.to(self.device)
-            target = target.to(self.device)
+            xx = data["pixel_values"].to(self.device)  # (B, C, H, W)
+            target = data["labels"].to(self.device)  # (B, T, C, H, W)
+            times = data["time"].to(self.device)
+            pixels_masks = data["pixel_mask"].to(self.device)
 
             # Perform autoregressive prediction
             with torch.autocast(
-                enabled=self.amp, device_type=self.device.type, dtype=torch.bfloat16
+                enabled=False, device_type=self.device.type, dtype=torch.bfloat16
             ):
                 ar_steps = target.shape[1]  # num of timesteps
                 output = torch.tensor(0.0, device=self.device)  # Initialize for linter
@@ -312,15 +350,18 @@ class Evaluator:
                     if _ar_step == 0:
                         x = xx
                     else:
-                        x = torch.cat(
-                            (x[:, 1:, ...], output),
-                            dim=1,
-                        )  # remove first input step, append output step
-                    output = self.model(x)
+                        x = output
+
+                    input = {
+                        "pixel_values": x,
+                        "labels": times,
+                        "pixel_mask": pixels_masks,
+                    }
+                    output = self.model(input).output
 
                 # Use the final step for evaluation
-                final_output = output
-                final_target = target[:, -1:, ...]  # (B, 1, H, W, C)
+                final_output = output  # B, C, H, W
+                final_target = target[:, -1, ...]  # (B, C, H, W)
 
             # Compute losses for each criterion using final step
             batch_losses = {}
@@ -330,8 +371,8 @@ class Evaluator:
                 raise ValueError(
                     f"Dataset '{ds_name}' not found in DATASET_FIELDS mapping"
                 )
-            y_loss = final_output[..., fields]
-            target_loss = final_target[..., fields]
+            y_loss = final_output[:, fields, ...]
+            target_loss = final_target[:, fields, ...]
             self.logger.debug(f"    Target shape: {target_loss.shape}")
 
             if self.debug:
@@ -350,12 +391,12 @@ class Evaluator:
                     )
 
             for name, criterion in self.eval_criteria.items():
-                # VMSE expects (B, T, H, W, C) and returns (B, T, H, W, C) with dims reduced
+                # VMSE expects (B, C, H, W) and returns (B, C, H, W) with dims reduced
                 loss = criterion(
                     y_loss, target_loss
-                )  # (B, 1, 1, 1, C) after dimension reduction
+                )  # (B, C, 1, 1) after dimension reduction
                 # Only squeeze the singleton spatial and temporal dimensions, keep batch and channel dims
-                loss = loss.squeeze(1).squeeze(1).squeeze(1)  # -> (B, C)
+                loss = loss.squeeze(2).squeeze(2)  # -> (B, C)
                 loss = torch.mean(loss, dim=-1)  # Average over channels -> (B,)
                 batch_losses[name] = loss
 
@@ -842,11 +883,9 @@ class Evaluator:
 
 def main(
     config_path: Path,
-    log_dir: Path | None,
-    checkpoint_name: str,
-    sim_name: str | None,
-    data_dir: Path | None,
-    subdir_name: str | None,
+    cp_path: Path,
+    data_dir: Path,
+    subdir_name: str,
     forecast_horizons: list[int] | None = None,
     debug: bool = False,
 ):
@@ -856,15 +895,11 @@ def main(
     ----------
     config_path : Path
         Path to the config file
-    log_dir : Path | None
-        Path to the log directory
-    checkpoint_name : str
-        Name of the checkpoint to load
-    sim_name : str | None
-        Name of the simulation
-    data_dir : Path | None
+    cp_path : Path
+        Path to the checkpoint
+    data_dir : Path
         Path to the data directory
-    subdir_name : str | None
+    subdir_name : str
         Name of the subdirectory where the evaluation is stored
     forecast_horizons : list[int] | None
         List of forecast horizons (n_steps_output) to evaluate.
@@ -879,38 +914,13 @@ def main(
     ####################################################################
     ########### Augment config #########################################
     ####################################################################
-
-    if log_dir is not None:
-        log_dir = Path(log_dir)
-        config["logging"]["log_dir"] = log_dir
-
-    if data_dir is not None:
-        data_dir = Path(data_dir)
-        config["data"]["data_dir"] = data_dir
-
-    if sim_name is not None:
-        config["wandb"]["id"] = sim_name
+    data_dir = Path(data_dir)
 
     ####################################################################
     ########### Initialize evaluator ###################################
     ####################################################################
-
-    model_config = config["model"]
-    data_config = config["data"]
-    training_config = config["training"]
-
-    data_config["datasets"] = data_config["datasets"]  # + eval_ds
     evaluator = Evaluator.from_checkpoint(
-        base_path=log_dir / sim_name,
-        name=subdir_name,
-        data_config=data_config,
-        model_config=model_config,
-        batch_size=training_config["batch_size"],
-        num_workers=training_config["num_workers"],
-        amp=training_config["amp"],
-        compile=training_config["compile"],
-        checkpoint_name=checkpoint_name,
-        debug=debug,
+        config=config, name=subdir_name, data_path=data_dir, cp_path=cp_path
     )
     evaluator.main(forecast_horizons=forecast_horizons)
 
@@ -945,12 +955,12 @@ if __name__ == "__main__":
     forecast_horizons = args.forecast_horizons
     debug = args.debug
 
+    cp_path = Path(log_dir) / checkpoint_name
+
     main(
         config_path=config_path,
-        log_dir=log_dir,
-        sim_name=sim_name,
+        cp_path=cp_path,
         data_dir=data_dir,
-        checkpoint_name=checkpoint_name,
         subdir_name=subdir_name,
         forecast_horizons=forecast_horizons,
         debug=debug,
