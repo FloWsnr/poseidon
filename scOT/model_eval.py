@@ -26,7 +26,7 @@ import pandas as pd
 import torch
 from torch.nn.modules.utils import consume_prefix_in_state_dict_if_present
 from torch.utils.data import DataLoader, DistributedSampler, SequentialSampler
-import torch.distributed as dist
+import torch.nn.functional as F
 
 from safetensors import safe_open
 from scOT.problems.well_ds import PhysicsDataset, get_all_dt_datasets
@@ -236,6 +236,7 @@ class Evaluator:
             max_stride=config["max_stride"],
             return_super_dataset=False,
             split_in_dt=True,
+            interp=False,
         )
 
         eval_dir = cp_path / name
@@ -348,7 +349,9 @@ class Evaluator:
                 output = torch.tensor(0.0, device=self.device)  # Initialize for linter
                 for _ar_step in range(ar_steps):
                     if _ar_step == 0:
-                        x = xx
+                        x = F.interpolate(
+                            xx, size=(128, 128), mode="bilinear", align_corners=False
+                        )
                     else:
                         x = output
 
@@ -361,6 +364,13 @@ class Evaluator:
 
                 # Use the final step for evaluation
                 final_output = output  # B, C, H, W
+                # reverse interpolation to original size
+                final_output = F.interpolate(
+                    final_output,
+                    size=xx.shape[-2:],
+                    mode="bilinear",
+                    align_corners=False,
+                )
                 final_target = target[:, -1, ...]  # (B, C, H, W)
 
             # Compute losses for each criterion using final step
