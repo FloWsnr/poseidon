@@ -222,9 +222,9 @@ class Evaluator:
             else torch.device("cpu")
         )
         model = get_model()
+        model = cls._load_checkpoint(cp_path, model)
         model.to(device)
 
-        model = cls._load_checkpoint(cp_path, device, model)
         torch.set_float32_matmul_precision("high")
         model.eval()
         datasets = get_all_dt_datasets(
@@ -254,7 +254,6 @@ class Evaluator:
     @staticmethod
     def _load_checkpoint(
         path: Path,
-        device: torch.device,
         model: torch.nn.Module,
     ) -> torch.nn.Module:
         """Load a model from a checkpoint.
@@ -263,8 +262,6 @@ class Evaluator:
         ----------
         path : Path
             Path to the checkpoint
-        device : torch.device
-            Device to load the model to
         model : torch.nn.Module
             Model to load the checkpoint into
 
@@ -275,7 +272,7 @@ class Evaluator:
         """
 
         weights = {}
-        with safe_open(path / "model.safetensors", framework="pt", device=device) as f:
+        with safe_open(path / "model.safetensors", framework="pt", device="cpu") as f:
             for key in f.keys():
                 weights[key] = f.get_tensor(key)
         consume_prefix_in_state_dict_if_present(weights, "module.")

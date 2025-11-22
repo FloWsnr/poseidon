@@ -234,6 +234,7 @@ def get_all_dt_datasets(
     nan_to_zero: bool = True,
     split_in_dt: bool = False,
     return_super_dataset: bool = True,
+    interp: bool = True,
 ) -> SuperDataset | dict[str, PhysicsDataset]:
     """ """
 
@@ -256,6 +257,7 @@ def get_all_dt_datasets(
                         full_trajectory_mode=full_trajectory_mode,
                         nan_to_zero=nan_to_zero,
                         num_channels=num_channels,
+                        interp=interp,
                     )
                     ds_key = f"{ds_name}_dt{stride}"
                     all_ds[ds_key] = dataset

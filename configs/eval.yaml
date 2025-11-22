@@ -1,59 +1,30 @@
 datasets:
-  value:
-      # - [turbulent_radiative_layer_2D, 101]
-      - [cylinder_sym_flow_water, 481]
-      - [cylinder_pipe_flow_water, 481]
-      - [object_periodic_flow_water, 481]
-      - [object_sym_flow_water, 481]
-      - [object_sym_flow_air, 481]
+  - [turbulent_radiative_layer_2D, 101]
+  # - [cylinder_sym_flow_water, 481]
+  # - [cylinder_pipe_flow_water, 481]
+  # - [object_periodic_flow_water, 481]
+  # - [object_sym_flow_water, 481]
+  # - [object_sym_flow_air, 481]
 
-      - [heated_object_pipe_flow_air, 481]
-      - [cooled_object_pipe_flow_air, 481]
-      - [rayleigh_benard_obstacle, 1001]
-      - [twophase_flow, 401]
-      - [rayleigh_benard, 200]
-      - [shear_flow, 200]
-      - [euler_multi_quadrants_periodicBC, 100]
+  # - [heated_object_pipe_flow_air, 481]
+  # - [cooled_object_pipe_flow_air, 481]
+  # - [rayleigh_benard_obstacle, 1001]
+  # - [twophase_flow, 401]
+  # - [rayleigh_benard, 200]
+  # - [shear_flow, 200]
+  # - [euler_multi_quadrants_periodicBC, 100]
 
-num_channels:
-  value: 5
-
-model_name:
-  value: "B" # T, B
-lr:
-  value: 0.0001
-lr_embedding_recovery:
-  value: 0.0005
-lr_time_embedding:
-  value: 0.0005
-weight_decay:
-  value: 0.000000
-lr_scheduler:
-  value: "cosine"
-warmup_ratio:
-  value: 0.0
-early_stopping_patience:
-  value: 200
-
+num_channels: 5
 
 ###########################
-# num_epochs:
-#   value: 1
-max_steps:
-  value: 1000000
-eval_steps:
-  value: 20000
+# num_epochs: 1
+max_steps: 1000000
+eval_steps: 20000
 
-img_size:
-  value: 128
-min_stride:
-  value: 1
-max_stride:
-  value: 8
+img_size: 128
+min_stride: 1
+max_stride: 8
 
-batch_size:
-  value: 128 #4=6gb
-num_workers:
-  value: 16
-max_grad_norm:
-  value: 5.0
+batch_size: 128 #4=6gb
+num_workers: 16
+max_grad_norm: 5.0
