@@ -26,7 +26,7 @@ sim_name="poseidon_test03"
 # name of the checkpoint to use for evaluation.
 checkpoint_name="checkpoint-50"
 # forcasts
-forecast="1 4 8 12 16 20 24"
+forecast="4 8 12 16 20 24"
 # subdir name
 sub_dir="eval/test"
 debug=false
@@ -76,7 +76,7 @@ exec_args="--config_file $config_file \
 
 if [ "$debug" = true ]; then
     echo "Running in debug mode."
-    exec_args ="$exec_args --debug"
+    exec_args="$exec_args --debug"
 fi
 
 # Capture Python output and errors in a variable and run the script

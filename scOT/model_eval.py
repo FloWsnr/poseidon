@@ -5,10 +5,7 @@ Date: 2025-05-01
 """
 
 from pathlib import Path
-import platform
 import argparse
-import os
-import json
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -203,6 +200,7 @@ class Evaluator:
         data_path: Path,
         config: dict,
         name: str,
+        debug: bool = False,
     ) -> "Evaluator":
         """Create an Evaluator instance from a checkpoint.
 
@@ -319,8 +317,8 @@ class Evaluator:
             Dictionary of statistics
         """
         stats = {
-            "mean": torch.mean(losses, dim=(0, 1, 2, 3)),
-            "std": torch.std(losses, dim=(0, 1, 2, 3)),
+            "mean": torch.mean(losses, dim=(0, 2, 3)),
+            "std": torch.std(losses, dim=(0, 2, 3)),
         }
         return stats
 
@@ -335,8 +333,10 @@ class Evaluator:
 
             xx = data["pixel_values"].to(self.device)  # (B, C, H, W)
             target = data["labels"].to(self.device)  # (B, T, C, H, W)
+            self.logger.debug(
+                f"    Input shape: {xx.shape}, target shape: {target.shape}"
+            )
             times = data["time"].to(self.device)
-            pixels_masks = data["pixel_mask"].to(self.device)
 
             # Perform autoregressive prediction
             with torch.autocast(
@@ -355,13 +355,14 @@ class Evaluator:
                     input = {
                         "pixel_values": x,
                         "time": times,
-                        "pixel_mask": pixels_masks,
-                        "labels": target,
                     }
                     output = self.model(**input).output
 
                 # Use the final step for evaluation
                 final_output = output  # B, C, H, W
+                self.logger.debug(
+                    f"    Final output shape: {final_output.shape} before interpolation"
+                )
                 # reverse interpolation to original size
                 final_output = F.interpolate(
                     final_output,
@@ -387,7 +388,7 @@ class Evaluator:
                 target_stats = self._get_stats(target_loss)
                 out_stats = self._get_stats(y_loss)
                 input_stats = self._get_stats(xx[..., fields])
-                for c in range(target_loss.shape[-1]):
+                for c in range(target_loss.shape[1]):
                     self.logger.debug(
                         f"    Target channel {c} - mean: {target_stats['mean'][c]:.6f}, std: {target_stats['std'][c]:.6f}"
                     )
@@ -796,7 +797,7 @@ class Evaluator:
                 # Create datasets with the specified n_steps_output
                 horizon_datasets = {}
                 for name, dataset in self.datasets.items():
-                    ds = dataset.copy(overwrites={"n_steps_output": horizon})
+                    ds = dataset.copy(overwrites={"n_output_steps": horizon})
                     if ds is not None:
                         horizon_datasets[name] = ds
 
@@ -928,7 +929,11 @@ def main(
     ########### Initialize evaluator ###################################
     ####################################################################
     evaluator = Evaluator.from_checkpoint(
-        config=config, name=subdir_name, data_path=data_dir, cp_path=cp_path
+        config=config,
+        name=subdir_name,
+        data_path=data_dir,
+        cp_path=cp_path,
+        debug=debug,
     )
     evaluator.main(forecast_horizons=forecast_horizons)
 
