@@ -1,29 +1,36 @@
 #!/usr/bin/bash
 
 ### Task name
-#SBATCH --account=xxxx
-#SBATCH --job-name=eval_gphyt
+#SBATCH --account=sds_baek_energetic
+#SBATCH --job-name=eval_poseidon
 
 ### Output file
-#SBATCH --output=results/slrm_logs/eval_gphyt_%j.out
+#SBATCH --output=results/slrm_logs/eval_poseidon_%j.out
 
 ### Start a parallel job for a distributed-memory system on several nodes
 #SBATCH --nodes=1
 
 ### How many CPU cores to use
-#SBATCH --ntasks-per-node=23
-#SBATCH --exclusive
+#SBATCH --ntasks-per-node=18
+
+### How much memory in total (MB)
+#SBATCH --mem=150G
+
 
 ### Mail notification configuration
-#SBATCH --mail-type=FAIL
-#SBATCH --mail-user=email@example.com
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=florian.wiesner@avt.rwth-aachen.de
 
 ### Maximum runtime per task
-#SBATCH --time=24:00:00
+#SBATCH --time=48:00:00
 
-### set number of GPUs per task
-#SBATCH --gres=gpu:1
+### set number of GPUs per task (v100, a100, h200)
+##SBATCH --gres=gpu:a6000:2
+#SBATCH --gres=gpu:a100:1
+#SBATCH --constraint=a100_80gb
 
+### Partition
+#SBATCH --partition=gpu
 
 #####################################################################################
 ############################# Setup #################################################
@@ -41,37 +48,41 @@ conda activate gphyt
 # debug mode
 # debug=true
 # Set up paths
-base_dir="General-Physics-Transformer"
+base_dir="/scratch/zsa8rk/poseidon"
 
-python_bin="/home/xxxxxx/miniforge3/envs/gphyt/bin/python"
-python_exec="${base_dir}/gphyt/run/model_eval.py"
+python_bin="/home/zsa8rk/miniforge3/envs/gphyt/bin/python"
+python_exec="${base_dir}/scOT/model_eval.py"
 log_dir="${base_dir}/results"
-data_dir="${base_dir}/data/datasets"
-base_config_file="${base_dir}/gphyt/run/scripts/config.yaml"
-sim_name="sim-name"
+data_dir="/scratch/zsa8rk/datasets"
+
+sim_name="poseidon_03"
+# name of the checkpoint to use for evaluation.
+checkpoint_name="checkpoint-50"
+# forcasts
+forecast="1 4 8 12 16 20 24"
+# subdir name
+sub_dir="eval/all_horizons"
+debug=false
+
+
 nnodes=1
 ngpus_per_node=1
 export OMP_NUM_THREADS=1
 
-# name of the checkpoint to use for evaluation. Can be "best_model" or a number of a epoch directory
-checkpoint_name="best_model"
 
 # sim directory
-sim_dir="${log_dir}/${sim_name}"
+sim_dir="${log_dir}/Large-Physics-Foundation-Model/${sim_name}"
+
+
 
 #######################################################################################
 ############################# Setup sim dir and config file ###########################
 #######################################################################################
 
-# delete the sim_dir if it exists and debug is true
-if [ "$debug" = true ]; then
-    rm -rf $sim_dir
-fi
-
 # create the sim_dir if it doesn't exist
 mkdir -p $sim_dir
 # Try to find config file in sim_dir
-config_file="${sim_dir}/config_eval.yaml"
+config_file="${base_dir}/configs/eval.yaml"
 if [ ! -f "$config_file" ]; then
     echo "No config_eval.yaml file found in $sim_dir, aborting..."
     exit 1
@@ -82,7 +93,7 @@ fi
 ############################# Evaluation ############################################
 #####################################################################################
 echo "--------------------------------"
-echo "Starting GPhyT evaluation..."
+echo "Starting evaluation..."
 echo "config_file: $config_file"
 echo "sim_dir: $sim_dir"
 echo "using checkpoint: $checkpoint_name"
@@ -90,9 +101,16 @@ echo "--------------------------------"
 
 exec_args="--config_file $config_file \
     --sim_name $sim_name \
-    --log_dir $log_dir \
+    --log_dir $sim_dir \
     --data_dir $data_dir \
-    --checkpoint_name $checkpoint_name"
+    --forecast_horizons $forecast \
+    --checkpoint_name $checkpoint_name \
+    --subdir_name $sub_dir"
+
+if [ "$debug" = true ]; then
+    echo "Running in debug mode."
+    exec_args ="$exec_args --debug"
+fi
 
 # Capture Python output and errors in a variable and run the script
 $python_bin $python_exec $exec_args

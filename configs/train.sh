@@ -23,7 +23,7 @@
 #SBATCH --mail-user=florian.wiesner@avt.rwth-aachen.de
 
 ### Maximum runtime per task
-#SBATCH --time=24:00:00
+#SBATCH --time=50:00:00
 
 ### set number of GPUs per task (v100, a100, h200)
 ##SBATCH --gres=gpu:a6000:2
@@ -48,7 +48,7 @@ conda activate gphyt
 ######################################################################################
 # debug mode
 # debug=true
-sim_name="poseidon_02"
+sim_name="poseidon_03"
 # Set up paths
 base_dir="/scratch/zsa8rk/poseidon"
 python_exec="${base_dir}/scOT/train.py"
@@ -60,7 +60,7 @@ export OMP_NUM_THREADS=1 # (num cpu - num_workers) / num_gpus
 
 # finetune:
 # path="/home/flwi01/coding/poseidon/results/poseidon_test00/Large-Physics-Foundation-Model/poseidon_test00/checkpoint-200"
-resume_training=true
+resume_training=false
 
 
 accelerate_args="
