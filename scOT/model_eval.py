@@ -354,10 +354,11 @@ class Evaluator:
 
                     input = {
                         "pixel_values": x,
-                        "labels": times,
+                        "time": times,
                         "pixel_mask": pixels_masks,
+                        "labels": target,
                     }
-                    output = self.model(input).output
+                    output = self.model(**input).output
 
                 # Use the final step for evaluation
                 final_output = output  # B, C, H, W

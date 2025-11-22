@@ -57,6 +57,17 @@ class PhysicsDataset(WellDataset):
         num_channels: int = 5,
         interp: bool = True,
     ):
+        self.config = {
+            "data_dir": data_dir,
+            "n_output_steps": n_output_steps,
+            "use_normalization": use_normalization,
+            "dt_stride": dt_stride,
+            "full_trajectory_mode": full_trajectory_mode,
+            "nan_to_zero": nan_to_zero,
+            "num_channels": num_channels,
+            "interp": interp,
+        }
+
         if isinstance(dt_stride, list):
             min_dt_stride = dt_stride[0]
             max_dt_stride = dt_stride[1]
@@ -84,6 +95,35 @@ class PhysicsDataset(WellDataset):
         self.output_steps = n_output_steps
         self.pixel_mask = torch.tensor([False] * num_channels)
         self.max_time = self.metadata.n_steps_per_trajectory[0] - 1
+
+    def copy(self, overwrites: dict[str, Any] = {}) -> Optional["PhysicsDataset"]:
+        """Copy the dataset with optional overwrites.
+
+        Useful for creating a new dataset with slightly different parameters.
+
+        Parameters
+        ----------
+        overwrites : dict[str, Any]
+            Dictionary of overwrites for the config.
+
+        Returns
+        -------
+        PhysicsDataset
+            New PhysicsDataset with the updated config.
+            Returns None if the dataset could not be created due to too large stride.
+        """
+        config = self.config.copy()
+        config.update(overwrites)
+        return PhysicsDataset(
+            data_dir=config["data_dir"],
+            n_output_steps=config["n_output_steps"],
+            use_normalization=config["use_normalization"],
+            dt_stride=config["dt_stride"],
+            full_trajectory_mode=config["full_trajectory_mode"],
+            nan_to_zero=config["nan_to_zero"],
+            num_channels=config["num_channels"],
+            interp=config["interp"],
+        )
 
     def __len__(self):
         return super().__len__()
