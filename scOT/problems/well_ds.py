@@ -55,7 +55,7 @@ class PhysicsDataset(WellDataset):
         full_trajectory_mode: bool = False,
         nan_to_zero: bool = True,
         num_channels: int = 5,
-        interp: bool = True,
+        train: bool = True,
     ):
         self.config = {
             "data_dir": data_dir,
@@ -65,8 +65,13 @@ class PhysicsDataset(WellDataset):
             "full_trajectory_mode": full_trajectory_mode,
             "nan_to_zero": nan_to_zero,
             "num_channels": num_channels,
-            "interp": interp,
+            "train": train,
         }
+        self.train = train
+        if self.train and n_output_steps > 1:
+            raise ValueError(
+                "Training with n_output_steps > 1 is not supported. Please set n_output_steps=1 when train=True."
+            )
 
         if isinstance(dt_stride, list):
             min_dt_stride = dt_stride[0]
@@ -91,7 +96,6 @@ class PhysicsDataset(WellDataset):
         name = data_dir.parents[1].name
         self.dataset_name = name
 
-        self.interp = interp
         self.output_steps = n_output_steps
         self.pixel_mask = torch.tensor([False] * num_channels)
         self.max_time = self.metadata.n_steps_per_trajectory[0] - 1
@@ -122,7 +126,7 @@ class PhysicsDataset(WellDataset):
             full_trajectory_mode=config["full_trajectory_mode"],
             nan_to_zero=config["nan_to_zero"],
             num_channels=config["num_channels"],
-            interp=config["interp"],
+            train=config["train"],
         )
 
     def __len__(self):
@@ -140,16 +144,15 @@ class PhysicsDataset(WellDataset):
         x = rearrange(x, "1 h w c -> 1 c h w")
         y = rearrange(y, "t h w c -> t c h w")
 
-        if self.interp:
+        if self.train:
             # # interpolate to 128x128
             x = F.interpolate(x, size=(128, 128), mode="bilinear", align_corners=False)
             y = F.interpolate(y, size=(128, 128), mode="bilinear", align_corners=False)
+            if self.output_steps == 1:
+                y = y.squeeze(0)
 
         # squeeze the batch dimension
         x = x.squeeze(0)
-        if self.output_steps == 1:
-            y = y.squeeze(0)
-
         dt = metadata.time_stride
 
         return {
@@ -297,7 +300,7 @@ def get_all_dt_datasets(
                         full_trajectory_mode=full_trajectory_mode,
                         nan_to_zero=nan_to_zero,
                         num_channels=num_channels,
-                        interp=interp,
+                        train=interp,
                     )
                     ds_key = f"{ds_name}_dt{stride}"
                     all_ds[ds_key] = dataset
