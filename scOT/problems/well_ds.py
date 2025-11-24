@@ -12,7 +12,34 @@ import torch.nn.functional as F
 from einops import rearrange
 
 
-from gphyt.data.well_dataset import WellDataset, ZScoreNormalization
+from gphyt.data.well_dataset import WellDataset, ZScoreNormalization, StrideError
+
+
+def get_phys_dataset(
+    data_dir: Path,
+    n_output_steps: int = 1,
+    use_normalization: bool = True,
+    dt_stride: int | list[int] = 1,
+    full_trajectory_mode: bool = False,
+    nan_to_zero: bool = True,
+    num_channels: int = 5,
+    train: bool = True,
+) -> Optional["PhysicsDataset"]:
+    """Helper function to create a PhysicsDataset."""
+    try:
+        return PhysicsDataset(
+            data_dir=data_dir,
+            n_output_steps=n_output_steps,
+            use_normalization=use_normalization,
+            dt_stride=dt_stride,
+            full_trajectory_mode=full_trajectory_mode,
+            nan_to_zero=nan_to_zero,
+            num_channels=num_channels,
+            train=train,
+        )
+    except StrideError as e:
+        print(f"Error creating PhysicsDataset for {data_dir}: {e}")
+        return None
 
 
 class PhysicsDataset(WellDataset):
@@ -118,7 +145,7 @@ class PhysicsDataset(WellDataset):
         """
         config = self.config.copy()
         config.update(overwrites)
-        return PhysicsDataset(
+        return get_phys_dataset(
             data_dir=config["data_dir"],
             n_output_steps=config["n_output_steps"],
             use_normalization=config["use_normalization"],
@@ -277,7 +304,7 @@ def get_all_dt_datasets(
     nan_to_zero: bool = True,
     split_in_dt: bool = False,
     return_super_dataset: bool = True,
-    interp: bool = True,
+    train: bool = True,
 ) -> SuperDataset | dict[str, PhysicsDataset]:
     """ """
 
@@ -293,27 +320,30 @@ def get_all_dt_datasets(
             if split_in_dt:
                 strides = range(min_stride, max_stride + 1)
                 for stride in strides:
-                    dataset = PhysicsDataset(
+                    dataset = get_phys_dataset(
                         data_dir=Path(path) / f"{ds_name}/data/{split_name}",
                         use_normalization=use_normalization,
                         dt_stride=stride,
                         full_trajectory_mode=full_trajectory_mode,
                         nan_to_zero=nan_to_zero,
                         num_channels=num_channels,
-                        train=interp,
+                        train=train,
                     )
-                    ds_key = f"{ds_name}_dt{stride}"
-                    all_ds[ds_key] = dataset
+                    if dataset is not None:
+                        ds_key = f"{ds_name}_dt{stride}"
+                        all_ds[ds_key] = dataset
             else:
-                dataset = PhysicsDataset(
+                dataset = get_phys_dataset(
                     data_dir=Path(path) / f"{ds_name}/data/{split_name}",
                     use_normalization=use_normalization,
                     dt_stride=[min_stride, max_stride],
                     full_trajectory_mode=full_trajectory_mode,
                     nan_to_zero=nan_to_zero,
                     num_channels=num_channels,
+                    train=train,
                 )
-                all_ds[ds_name] = dataset
+                if dataset is not None:
+                    all_ds[ds_name] = dataset
 
         else:
             print(f"Dataset path {ds_path} does not exist. Skipping.")

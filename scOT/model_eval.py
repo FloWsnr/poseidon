@@ -234,7 +234,7 @@ class Evaluator:
             max_stride=config["max_stride"],
             return_super_dataset=False,
             split_in_dt=True,
-            interp=False,
+            train=False,
         )
 
         eval_dir = cp_path / name
