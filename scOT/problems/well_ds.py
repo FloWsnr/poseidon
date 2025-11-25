@@ -167,6 +167,9 @@ class PhysicsDataset(WellDataset):
         if self.nan_to_zero:
             x = torch.nan_to_num(x, nan=0.0)
             y = torch.nan_to_num(y, nan=0.0)
+        # Convert to float32 to match model dtype
+        x = x.float()
+        y = y.float()
         # reshape to (c, h, w)
         x = rearrange(x, "1 h w c -> 1 c h w")
         y = rearrange(y, "t h w c -> t c h w")
@@ -185,7 +188,7 @@ class PhysicsDataset(WellDataset):
         return {
             "pixel_values": x,
             "labels": y,
-            "time": torch.tensor(dt),
+            "time": torch.tensor(dt, dtype=torch.float32),
             "pixel_mask": self.pixel_mask,
         }
 

@@ -333,10 +333,13 @@ class Evaluator:
 
             xx = data["pixel_values"].to(self.device)  # (B, C, H, W)
             target = data["labels"].to(self.device)  # (B, T, C, H, W)
+            times = data["time"].to(self.device)
             self.logger.debug(
                 f"    Input shape: {xx.shape}, target shape: {target.shape}"
             )
-            times = data["time"].to(self.device)
+            self.logger.debug(
+                f"    DTypes: input={xx.dtype}, target={target.dtype}, time={times.dtype}"
+            )
 
             # Perform autoregressive prediction
             with torch.autocast(
