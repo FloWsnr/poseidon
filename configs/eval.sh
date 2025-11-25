@@ -2,7 +2,7 @@
 
 ### Task name
 #SBATCH --account=rwth1802
-#SBATCH --job-name=eval_poseidon
+#SBATCH --job-name=eval_poseidon_novel
 
 ### Output file
 #SBATCH --output=results/slrm_logs/eval_poseidon_%j.out
@@ -29,7 +29,7 @@
 ############################# Setup #################################################
 #####################################################################################
 
-CUDA_VISIBLE_DEVICES=1
+# CUDA_VISIBLE_DEVICES=1
 
 # activate conda environment
 export CONDA_ROOT=$HOME/miniforge3
@@ -56,8 +56,8 @@ checkpoint_name="checkpoint-200000"
 # forcasts
 forecast="1 4 8 12 16 20 24"
 # subdir name
-sub_dir="eval/all_horizons"
-debug=true
+sub_dir="eval/all_horizons_novel"
+debug=false
 
 
 nnodes=1
@@ -77,7 +77,7 @@ sim_dir="${log_dir}/Large-Physics-Foundation-Model/${sim_name}"
 # create the sim_dir if it doesn't exist
 mkdir -p $sim_dir
 # Try to find config file in sim_dir
-config_file="${base_dir}/configs/eval.yaml"
+config_file="${base_dir}/configs/eval_novel.yaml"
 if [ ! -f "$config_file" ]; then
     echo "No config_eval.yaml file found in $sim_dir, aborting..."
     exit 1
